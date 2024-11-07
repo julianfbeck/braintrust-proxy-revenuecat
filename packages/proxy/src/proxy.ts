@@ -51,15 +51,9 @@ import { fetchBedrockAnthropic } from "./providers/bedrock";
 import { Buffer } from "node:buffer";
 import { ExperimentLogPartialArgs } from "@braintrust/core";
 import { MessageParam } from "@anthropic-ai/sdk/resources";
-import {
-  getCurrentUnixTimestamp,
-  parseOpenAIStream,
-  isTempCredential,
-  makeTempCredentials,
-  verifyTempCredentials,
-} from "utils";
+import { getCurrentUnixTimestamp, parseOpenAIStream } from "utils";
 import { openAIChatCompletionToChatEvent } from "./providers/openai";
-import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions";
+import { makeTempCredentials } from "utils/tempCredentials";
 
 type CachedData = {
   headers: Record<string, string>;
@@ -377,38 +371,9 @@ export async function proxyV1({
         bodyData,
         setOverriddenHeader,
         async (model) => {
-          // First, try to use temp credentials, because then we'll get access
-          // to the model.
-          let cachedAuthToken: string | undefined;
-          if (
-            useCredentialsCacheMode !== "never" &&
-            isTempCredential(authToken)
-          ) {
-            const { credentialCacheValue, jwtPayload } =
-              await verifyTempCredentials({
-                jwt: authToken,
-                cacheGet,
-              });
-            // Unwrap the API key here to avoid a duplicate call to
-            // `verifyTempCredentials` inside `getApiSecrets`. That call will
-            // use Redis which is not available in Cloudflare.
-            cachedAuthToken = credentialCacheValue.authToken;
-            if (jwtPayload.bt.logging) {
-              console.warn(
-                `Logging was requested, but not supported on ${method} ${url}`,
-              );
-            }
-            if (jwtPayload.bt.model && jwtPayload.bt.model !== model) {
-              console.warn(
-                `Temp credential allows model "${jwtPayload.bt.model}", but "${model}" was requested`,
-              );
-              return [];
-            }
-          }
-
           const secrets = await getApiSecrets(
             useCredentialsCacheMode !== "never",
-            cachedAuthToken || authToken,
+            authToken,
             model,
             orgName,
           );
@@ -1243,13 +1208,6 @@ async function fetchAnthropic(
     );
 
     delete params.functions;
-  }
-
-  if (params.tool_choice) {
-    params.tool_choice = anthropicToolChoiceToOpenAIToolChoice(
-      params.tool_choice as ChatCompletionCreateParamsBase["tool_choice"],
-    );
-    console.log("tool_choice", params.tool_choice);
   }
 
   if (secret.type === "bedrock") {

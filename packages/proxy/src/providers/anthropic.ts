@@ -519,21 +519,3 @@ export function openAIToolsToAnthropicTools(
     });
   });
 }
-
-export function anthropicToolChoiceToOpenAIToolChoice(
-  toolChoice: ChatCompletionCreateParamsBase["tool_choice"],
-): MessageCreateParamsBase["tool_choice"] {
-  if (!toolChoice) {
-    return undefined;
-  }
-  switch (toolChoice) {
-    case "none":
-      return undefined;
-    case "auto":
-      return { type: "auto" };
-    case "required":
-      return { type: "any" };
-    default:
-      return { type: "tool", name: toolChoice.function.name };
-  }
-}

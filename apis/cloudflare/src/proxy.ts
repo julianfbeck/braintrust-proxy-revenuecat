@@ -28,15 +28,15 @@ export async function handleProxyV1(
   request: Request,
   proxyV1Prefix: string,
   env: Env,
-  ctx: ExecutionContext,
+  ctx: ExecutionContext
 ): Promise<Response> {
   let meterProvider = undefined;
   if (!env.DISABLE_METRICS) {
     const metricShard = Math.floor(
-      Math.random() * PrometheusMetricAggregator.numShards(env),
+      Math.random() * PrometheusMetricAggregator.numShards(env)
     );
     const aggregator = env.METRICS_AGGREGATOR.get(
-      env.METRICS_AGGREGATOR.idFromName(metricShard.toString()),
+      env.METRICS_AGGREGATOR.idFromName(metricShard.toString())
     );
     const metricAggURL = new URL(request.url);
     metricAggURL.pathname = "/push";
@@ -49,13 +49,13 @@ export async function handleProxyV1(
             "Content-Type": "application/json",
           },
           body: JSON.stringify(resourceMetrics),
-        }),
-      ),
+        })
+      )
     );
   }
 
   const meter = (meterProvider || NOOP_METER_PROVIDER).getMeter(
-    "cloudflare-metrics",
+    "cloudflare-metrics"
   );
 
   const whitelist = originWhitelist(env);
@@ -63,33 +63,11 @@ export async function handleProxyV1(
   const cacheGetLatency = meter.createHistogram("results_cache_get_latency");
   const cacheSetLatency = meter.createHistogram("results_cache_set_latency");
 
-  const cache = await caches.open("apikey:cache");
-
   const opts: ProxyOpts = {
     getRelativeURL(request: Request): string {
       return new URL(request.url).pathname.slice(proxyV1Prefix.length);
     },
     cors: true,
-    credentialsCache: {
-      async get<T>(key: string): Promise<T | null> {
-        const response = await cache.match(apiCacheKey(key));
-        if (response) {
-          return (await response.json()) as T;
-        } else {
-          return null;
-        }
-      },
-      async set<T>(key: string, value: T, { ttl }: { ttl?: number }) {
-        await cache.put(
-          apiCacheKey(key),
-          new Response(JSON.stringify(value), {
-            headers: {
-              "Cache-Control": `public${ttl ? `, max-age=${ttl}}` : ""}`,
-            },
-          }),
-        );
-      },
-    },
     completionsCache: {
       get: async (key) => {
         const start = performance.now();
@@ -114,6 +92,22 @@ export async function handleProxyV1(
     braintrustApiUrl: braintrustAppUrl(env).toString(),
     meterProvider,
     whitelist,
+    apiKeys: {
+      openai: env.OPENAI_API_KEY,
+      anthropic: env.ANTHROPIC_API_KEY,
+      google: env.GOOGLE_API_KEY,
+      mistral: env.MISTRAL_API_KEY,
+      perplexity: env.PERPLEXITY_API_KEY,
+      azure: env.AZURE_API_KEY,
+      replicate: env.REPLICATE_API_KEY,
+      together: env.TOGETHER_API_KEY,
+      lepton: env.LEPTON_API_KEY,
+      fireworks: env.FIREWORKS_API_KEY,
+      cerebras: env.CEREBRAS_API_KEY,
+      groq: env.GROQ_API_KEY,
+      xAI: env.XAI_API_KEY,
+      ollama: env.OLLAMA_API_KEY,
+    },
   };
 
   const url = new URL(request.url);
@@ -141,7 +135,7 @@ export async function handleProxyV1(
 export async function handlePrometheusScrape(
   request: Request,
   env: Env,
-  ctx: ExecutionContext,
+  ctx: ExecutionContext
 ): Promise<Response> {
   if (env.DISABLE_METRICS) {
     return new Response("Metrics disabled", { status: 403 });
@@ -176,7 +170,7 @@ export async function handlePrometheusScrape(
       { length: PrometheusMetricAggregator.numShards(env) },
       async (_, i) => {
         const aggregator = env.METRICS_AGGREGATOR.get(
-          env.METRICS_AGGREGATOR.idFromName(i.toString()),
+          env.METRICS_AGGREGATOR.idFromName(i.toString())
         );
         const url = new URL(request.url);
         url.pathname = "/metrics";
@@ -187,13 +181,13 @@ export async function handlePrometheusScrape(
           throw new Error(
             `Unexpected status code ${resp.status} ${
               resp.statusText
-            }: ${await resp.text()}`,
+            }: ${await resp.text()}`
           );
         } else {
           return await resp.text();
         }
-      },
-    ),
+      }
+    )
   );
   return new Response(shards.join("\n"), {
     headers: {

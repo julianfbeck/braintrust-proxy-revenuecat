@@ -37,7 +37,7 @@ PROMETHEUS_SCRAPE_PASSWORD="password"
 kv_namespaces = [
     # Configure this id to map to the id returned from
     #   wrangler kv:namespace create ai-proxy
-    { binding = "ai_proxy", id = "<YOUR_KV_ID>" },
+    { binding = "ai_proxy", id = "39a8232c7dce4918bbbfeb2ff53a3fca" },
 ]
 
 [env.staging.observability]
