@@ -171,7 +171,7 @@ export interface AnthropicCompletion {
         id: string;
         name: string;
         input: Record<string, unknown>;
-      },
+      }
   ];
   model: string;
   stop_reason: string;
@@ -181,7 +181,7 @@ export interface AnthropicCompletion {
 
 function updateUsage(
   anthropic: z.infer<typeof anthropicUsage>,
-  openai: Partial<CompletionUsage>,
+  openai: Partial<CompletionUsage>
 ) {
   if (!isEmpty(anthropic.input_tokens)) {
     openai.prompt_tokens = anthropic.input_tokens;
@@ -194,14 +194,14 @@ function updateUsage(
 export function anthropicEventToOpenAIEvent(
   idx: number,
   usage: Partial<CompletionUsage>,
-  eventU: unknown,
+  eventU: unknown
 ): { event: ChatCompletionChunk | null; finished: boolean } {
   const parsedEvent = anthropicStreamEventSchema.safeParse(eventU);
   if (!parsedEvent.success) {
     throw new Error(
       `Unable to parse Anthropic event: ${JSON.stringify(eventU)}\n${
         parsedEvent.error.message
-      }`,
+      }`
     );
   }
   const event = parsedEvent.data;
@@ -239,8 +239,8 @@ export function anthropicEventToOpenAIEvent(
     ) {
       throw new Error(
         `Unknown non-empty tool use 'input' field in Anthropic: ${JSON.stringify(
-          eventU,
-        )}`,
+          eventU
+        )}`
       );
     }
     tool_calls = [
@@ -302,7 +302,7 @@ export function anthropicEventToOpenAIEvent(
     };
   } else {
     console.warn(
-      `Skipping unhandled Anthropic stream event: ${JSON.stringify(eventU)}`,
+      `Skipping unhandled Anthropic stream event: ${JSON.stringify(eventU)}`
     );
     return {
       event: null,
@@ -334,7 +334,7 @@ export function anthropicEventToOpenAIEvent(
 
 export function anthropicCompletionToOpenAICompletion(
   completion: AnthropicCompletion,
-  isFunction: boolean,
+  isFunction: boolean
 ): ChatCompletion {
   console.log("COMPLETION", JSON.stringify(completion, null, 2));
   const firstText = completion.content.find((c) => c.type === "text");
@@ -353,17 +353,17 @@ export function anthropicCompletionToOpenAICompletion(
           tool_calls: isFunction
             ? undefined
             : firstTool
-              ? [
-                  {
-                    id: firstTool.id,
-                    type: "function",
-                    function: {
-                      name: firstTool.name,
-                      arguments: JSON.stringify(firstTool.input),
-                    },
+            ? [
+                {
+                  id: firstTool.id,
+                  type: "function",
+                  function: {
+                    name: firstTool.name,
+                    arguments: JSON.stringify(firstTool.input),
                   },
-                ]
-              : undefined,
+                },
+              ]
+            : undefined,
           function_call:
             isFunction && firstTool
               ? {
@@ -388,13 +388,13 @@ export function anthropicCompletionToOpenAICompletion(
 }
 
 function anthropicFinishReason(
-  stop_reason: string,
+  stop_reason: string
 ): ChatCompletion.Choice["finish_reason"] | null {
   return stop_reason === "stop_reason"
     ? "stop"
     : stop_reason === "max_tokens"
-      ? "length"
-      : null;
+    ? "length"
+    : null;
 }
 
 const maxImageBytes = 5 * 1024 * 1024;
@@ -406,7 +406,7 @@ const allowedImageTypes = [
 ];
 
 export async function makeAnthropicImageBlock(
-  image: string,
+  image: string
 ): Promise<AnthropicImageBlock> {
   const imageBlock = await convertImageToBase64({
     image,
@@ -423,7 +423,7 @@ export async function makeAnthropicImageBlock(
 }
 
 export async function openAIContentToAnthropicContent(
-  content: Message["content"],
+  content: Message["content"]
 ): Promise<AnthropicContent> {
   if (typeof content === "string") {
     return content;
@@ -432,13 +432,13 @@ export async function openAIContentToAnthropicContent(
     content?.map(async (part) =>
       part.type === "text"
         ? part
-        : await makeAnthropicImageBlock(part.image_url.url),
-    ) ?? [],
+        : await makeAnthropicImageBlock(part.image_url.url)
+    ) ?? []
   );
 }
 
 export function openAIToolMessageToAnthropicToolCall(
-  toolCall: ChatCompletionToolMessageParam,
+  toolCall: ChatCompletionToolMessageParam
 ): ToolResultBlockParam[] {
   return [
     {
@@ -450,7 +450,7 @@ export function openAIToolMessageToAnthropicToolCall(
 }
 
 export function openAIToolCallsToAnthropicToolUse(
-  toolCalls: ChatCompletionMessageToolCall[],
+  toolCalls: ChatCompletionMessageToolCall[]
 ): ToolUseBlockParam[] {
   return toolCalls.map((t) => ({
     id: t.id,
@@ -461,7 +461,7 @@ export function openAIToolCallsToAnthropicToolUse(
 }
 
 export function upgradeAnthropicContentMessage(
-  content: MessageParam["content"],
+  content: MessageParam["content"]
 ): Exclude<MessageParam["content"], string> {
   if (typeof content === "string") {
     if (content.trim() !== "") {
@@ -475,7 +475,7 @@ export function upgradeAnthropicContentMessage(
 }
 
 export function flattenAnthropicMessages(
-  messages: Array<MessageParam>,
+  messages: Array<MessageParam>
 ): Array<MessageParam> {
   const result: Array<MessageParam> = [];
   for (let i = 0; i < messages.length; i++) {
@@ -484,7 +484,7 @@ export function flattenAnthropicMessages(
       result[result.length - 1].role === messages[i].role
     ) {
       result[result.length - 1].content = upgradeAnthropicContentMessage(
-        result[result.length - 1].content,
+        result[result.length - 1].content
       ).concat(upgradeAnthropicContentMessage(messages[i].content));
     } else {
       result.push(messages[i]);
@@ -502,7 +502,7 @@ const anthropicToolSchema = z.object({
 const anthropicTools = z.array(anthropicToolSchema);
 
 export function openAIToolsToAnthropicTools(
-  toolsU: unknown,
+  toolsU: unknown
 ): z.infer<typeof anthropicTools> {
   // We don't have a zoddified version of ChatCompletionTool, so
   // just do some basic checks:

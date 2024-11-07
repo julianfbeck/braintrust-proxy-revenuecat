@@ -23,7 +23,6 @@ import {
 import {
   anthropicCompletionToOpenAICompletion,
   anthropicEventToOpenAIEvent,
-  anthropicToolChoiceToOpenAIToolChoice,
   flattenAnthropicMessages,
   openAIContentToAnthropicContent,
   openAIToolCallsToAnthropicToolUse,
@@ -120,14 +119,14 @@ export async function proxyV1({
     useCache: boolean,
     authToken: string,
     model: string | null,
-    org_name?: string,
+    org_name?: string
   ) => Promise<APISecret[]>;
   cacheGet: (encryptionKey: string, key: string) => Promise<string | null>;
   cachePut: (
     encryptionKey: string,
     key: string,
     value: string,
-    ttl_seconds?: number,
+    ttl_seconds?: number
   ) => Promise<void>;
   digest: (message: string) => Promise<string>;
   meterProvider?: MeterProvider;
@@ -145,7 +144,7 @@ export async function proxyV1({
   totalCalls.add(1);
 
   proxyHeaders = Object.fromEntries(
-    Object.entries(proxyHeaders).map(([k, v]) => [k.toLowerCase(), v]),
+    Object.entries(proxyHeaders).map(([k, v]) => [k.toLowerCase(), v])
   );
   const headers = Object.fromEntries(
     Object.entries(proxyHeaders).filter(
@@ -159,8 +158,8 @@ export async function proxyV1({
           h === "priority" ||
           h === "referer" ||
           h === "user-agent"
-        ),
-    ),
+        )
+    )
   );
 
   const authToken = parseAuthHeader(proxyHeaders);
@@ -172,17 +171,17 @@ export async function proxyV1({
   const useCacheMode = parseEnumHeader(
     CACHE_HEADER,
     CACHE_MODES,
-    proxyHeaders[CACHE_HEADER],
+    proxyHeaders[CACHE_HEADER]
   );
   const useCredentialsCacheMode = parseEnumHeader(
     CACHE_HEADER,
     CACHE_MODES,
-    proxyHeaders[CREDS_CACHE_HEADER],
+    proxyHeaders[CREDS_CACHE_HEADER]
   );
   const streamFormat = parseEnumHeader(
     FORMAT_HEADER,
     ["openai", "vercel-ai"] as const,
-    proxyHeaders[FORMAT_HEADER],
+    proxyHeaders[FORMAT_HEADER]
   );
 
   let orgName: string | undefined = proxyHeaders[ORG_NAME_HEADER] ?? undefined;
@@ -239,7 +238,7 @@ export async function proxyV1({
     } catch (e) {
       setStatusCode(400);
       readable = writeToReadable(
-        e instanceof Error ? e.message : JSON.stringify(e),
+        e instanceof Error ? e.message : JSON.stringify(e)
       );
     } finally {
       if (readable) {
@@ -280,7 +279,7 @@ export async function proxyV1({
       authToken: cacheKeyOptions.excludeAuthToken || authToken,
       orgName: cacheKeyOptions.excludeOrgName || orgName,
       endpointName,
-    }),
+    })
   );
 
   // We must hash the data key again to get the cache key, so that the cache key is not reversible to the data key.
@@ -352,13 +351,13 @@ export async function proxyV1({
     } catch (e) {
       console.warn(
         "Failed to parse body. Will fall back to default (OpenAI)",
-        e,
+        e
       );
     }
 
     if (streamFormat === "vercel-ai" && !isStreaming) {
       throw new Error(
-        "Vercel AI format requires the stream parameter to be set to true",
+        "Vercel AI format requires the stream parameter to be set to true"
       );
     }
 
@@ -375,7 +374,7 @@ export async function proxyV1({
             useCredentialsCacheMode !== "never",
             authToken,
             model,
-            orgName,
+            orgName
           );
           if (endpointName) {
             return secrets.filter((s) => s.name === endpointName);
@@ -386,7 +385,7 @@ export async function proxyV1({
         spanLogger,
         (st) => {
           spanType = st;
-        },
+        }
       );
     stream = proxyStream;
 
@@ -441,7 +440,7 @@ export async function proxyV1({
           cachePut(
             encryptionKey,
             cacheKey,
-            JSON.stringify({ headers: proxyResponseHeaders, data: dataB64 }),
+            JSON.stringify({ headers: proxyResponseHeaders, data: dataB64 })
           );
           controller.terminate();
         },
@@ -566,7 +565,7 @@ export async function proxyV1({
           });
         } else {
           const dataRaw = JSON.parse(
-            new TextDecoder().decode(flattenChunksArray(allChunks)),
+            new TextDecoder().decode(flattenChunksArray(allChunks))
           );
 
           switch (spanType) {
@@ -632,7 +631,7 @@ export async function proxyV1({
                 controller.enqueue(new TextEncoder().encode(parsedMessage));
               }
             }
-          },
+          }
         );
       },
       async flush(controller): Promise<void> {
@@ -683,14 +682,14 @@ async function fetchModelLoop(
   setHeader: (name: string, value: string) => void,
   getApiSecrets: (model: string | null) => Promise<APISecret[]>,
   spanLogger: SpanLogger | undefined,
-  setSpanType: (spanType: SpanType) => void,
+  setSpanType: (spanType: SpanType) => void
 ): Promise<ModelResponse> {
   const requestId = ++loopIndex;
 
   const endpointCalls = meter.createCounter("endpoint_calls");
   const endpointFailures = meter.createCounter("endpoint_failures");
   const endpointRetryableErrors = meter.createCounter(
-    "endpoint_retryable_errors",
+    "endpoint_retryable_errors"
   );
   const retriesPerCall = meter.createHistogram("retries_per_call", {
     advice: {
@@ -744,7 +743,7 @@ async function fetchModelLoop(
           break;
         default:
           throw new Error(
-            `Unsupported model ${model} (must be chat or completion for /auto endpoint)`,
+            `Unsupported model ${model} (must be chat or completion for /auto endpoint)`
           );
       }
     }
@@ -782,14 +781,14 @@ async function fetchModelLoop(
         headers,
         secret,
         bodyData,
-        setHeader,
+        setHeader
       );
       if (
         proxyResponse.response.ok ||
         (proxyResponse.response.status >= 400 &&
           proxyResponse.response.status < 500 &&
           !TRY_ANOTHER_ENDPOINT_ERROR_CODES.includes(
-            proxyResponse.response.status,
+            proxyResponse.response.status
           ))
       ) {
         break;
@@ -797,7 +796,7 @@ async function fetchModelLoop(
         console.warn(
           "Received retryable error. Will try the next endpoint",
           proxyResponse.response.status,
-          proxyResponse.response.statusText,
+          proxyResponse.response.statusText
         );
         httpCode = proxyResponse.response.status;
 
@@ -810,7 +809,7 @@ async function fetchModelLoop(
           totalWaitedTime < RATE_LIMIT_MAX_WAIT_MS
         ) {
           const limitReset = tryParseRateLimitReset(
-            proxyResponse.response.headers,
+            proxyResponse.response.headers
           );
           delayMs = Math.max(
             // Make sure we sleep at least 10ms. Sometimes the random backoff logic can get wonky.
@@ -820,13 +819,13 @@ async function fetchModelLoop(
               // And never sleep longer than 10 seconds or the remaining budget.
               limitReset || delayMs * (BACKOFF_EXPONENT - Math.random()),
               10 * 1000,
-              RATE_LIMIT_MAX_WAIT_MS - totalWaitedTime,
+              RATE_LIMIT_MAX_WAIT_MS - totalWaitedTime
             ),
-            10,
+            10
           );
           console.warn(
             `Ran out of endpoints and hit rate limit errors, so sleeping for ${delayMs}ms`,
-            loopIndex,
+            loopIndex
           );
           await new Promise((r) => setTimeout(r, delayMs));
 
@@ -840,7 +839,7 @@ async function fetchModelLoop(
         console.log(
           "Failed to fetch (most likely an invalid URL",
           secret.id,
-          e,
+          e
         );
       } else {
         endpointFailures.add(1, loggableInfo);
@@ -861,7 +860,7 @@ async function fetchModelLoop(
       throw lastException;
     } else {
       throw new Error(
-        `No API keys found (for ${model}). You can configure API secrets at https://www.braintrust.dev/app/settings?subroute=secrets`,
+        `No API keys found (for ${model}). You can configure API secrets at https://www.braintrust.dev/app/settings?subroute=secrets`
       );
     }
   }
@@ -901,7 +900,7 @@ async function fetchModel(
   headers: Record<string, string>,
   secret: APISecret,
   bodyData: null | any,
-  setHeader: (name: string, value: string) => void,
+  setHeader: (name: string, value: string) => void
 ) {
   switch (format) {
     case "openai":
@@ -911,7 +910,7 @@ async function fetchModel(
         headers,
         bodyData,
         secret,
-        setHeader,
+        setHeader
       );
     case "anthropic":
       console.assert(method === "POST");
@@ -930,7 +929,7 @@ async function fetchOpenAI(
   headers: Record<string, string>,
   bodyData: null | any,
   secret: APISecret,
-  setHeader: (name: string, value: string) => void,
+  setHeader: (name: string, value: string) => void
 ): Promise<ModelResponse> {
   let baseURL =
     (secret.metadata &&
@@ -939,23 +938,23 @@ async function fetchOpenAI(
     EndpointProviderToBaseURL[secret.type];
   if (baseURL === null) {
     throw new Error(
-      `Unsupported provider ${secret.name} (${secret.type}) (must specify base url)`,
+      `Unsupported provider ${secret.name} (${secret.type}) (must specify base url)`
     );
   }
 
   if (secret.type === "azure") {
     if (secret.metadata?.deployment) {
       baseURL = `${baseURL}openai/deployments/${encodeURIComponent(
-        secret.metadata.deployment,
+        secret.metadata.deployment
       )}`;
     } else if (bodyData?.model || bodyData?.engine) {
       const model = bodyData.model || bodyData.engine;
       baseURL = `${baseURL}openai/deployments/${encodeURIComponent(
-        model.replace("gpt-3.5", "gpt-35"),
+        model.replace("gpt-3.5", "gpt-35")
       )}`;
     } else {
       throw new Error(
-        `Azure provider ${secret.id} must have a deployment or model specified`,
+        `Azure provider ${secret.id} must have a deployment or model specified`
       );
     }
   } else if (secret.type === "lepton") {
@@ -1024,7 +1023,7 @@ async function fetchOpenAI(
           method,
           headers,
           keepalive: true,
-        },
+        }
   );
 
   return {
@@ -1065,7 +1064,7 @@ async function fetchOpenAIFakeStream({
           method,
           headers,
           keepalive: true,
-        },
+        }
   );
 
   let responseChunks: Uint8Array[] = [];
@@ -1105,8 +1104,10 @@ async function fetchOpenAIFakeStream({
       }
       controller.enqueue(
         new TextEncoder().encode(
-          `data: ${JSON.stringify(openAIChatCompletionToChatEvent(responseJson))}\n\n`,
-        ),
+          `data: ${JSON.stringify(
+            openAIChatCompletionToChatEvent(responseJson)
+          )}\n\n`
+        )
       );
       controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`));
       controller.terminate();
@@ -1130,7 +1131,7 @@ async function fetchAnthropic(
   url: string,
   headers: Record<string, string>,
   bodyData: null | any,
-  secret: APISecret,
+  secret: APISecret
 ): Promise<ModelResponse> {
   console.assert(url === "/chat/completions");
 
@@ -1164,7 +1165,7 @@ async function fetchAnthropic(
       ("function_call" in m && !isEmpty(m.function_call))
     ) {
       throw new Error(
-        "Anthropic does not support function messages or function_calls",
+        "Anthropic does not support function messages or function_calls"
       );
     } else if (m.role === "tool") {
       role = "user";
@@ -1203,8 +1204,8 @@ async function fetchAnthropic(
           (f: any) => ({
             type: "function",
             function: f,
-          }),
-        ),
+          })
+        )
     );
 
     delete params.functions;
@@ -1246,7 +1247,7 @@ async function fetchAnthropic(
             data: ret.event && JSON.stringify(ret.event),
             finished: ret.finished,
           };
-        }),
+        })
       );
     } else {
       const allChunks: Uint8Array[] = [];
@@ -1261,13 +1262,13 @@ async function fetchAnthropic(
             controller.enqueue(
               new TextEncoder().encode(
                 JSON.stringify(
-                  anthropicCompletionToOpenAICompletion(data, isFunction),
-                ),
-              ),
+                  anthropicCompletionToOpenAICompletion(data, isFunction)
+                )
+              )
             );
             controller.terminate();
           },
-        }),
+        })
       );
     }
   }
@@ -1282,7 +1283,7 @@ async function fetchGoogle(
   url: string,
   headers: Record<string, string>,
   bodyData: null | any,
-  secret: APISecret,
+  secret: APISecret
 ): Promise<ModelResponse> {
   console.assert(url === "/chat/completions");
 
@@ -1308,14 +1309,14 @@ async function fetchGoogle(
         }
         return [translatedKey ?? key, value];
       })
-      .filter(([k, _]) => k !== null),
+      .filter(([k, _]) => k !== null)
   );
 
   const fullURL = new URL(
     EndpointProviderToBaseURL.google! +
       `/models/${encodeURIComponent(model)}:${
         streamingMode ? "streamGenerateContent" : "generateContent"
-      }`,
+      }`
   );
   fullURL.searchParams.set("key", secret.secret);
   if (streamingMode) {
@@ -1347,7 +1348,7 @@ async function fetchGoogle(
             data: ret.event && JSON.stringify(ret.event),
             finished: ret.finished,
           };
-        }),
+        })
       );
     } else {
       const allChunks: Uint8Array[] = [];
@@ -1361,12 +1362,12 @@ async function fetchGoogle(
             const data = JSON.parse(text);
             controller.enqueue(
               new TextEncoder().encode(
-                JSON.stringify(googleCompletionToOpenAICompletion(model, data)),
-              ),
+                JSON.stringify(googleCompletionToOpenAICompletion(model, data))
+              )
             );
             controller.terminate();
           },
-        }),
+        })
       );
     }
   }
@@ -1397,14 +1398,14 @@ export interface AIStreamParser {
  * @returns {TransformStream<Uint8Array, Uint8Array>} TransformStream parsing events.
  */
 export function createEventStreamTransformer(
-  customParser: AIStreamParser,
+  customParser: AIStreamParser
 ): TransformStream<Uint8Array, Uint8Array> {
   const textDecoder = new TextDecoder();
   let eventSourceParser: EventSourceParser;
 
   let finished = false;
   const finish = async (
-    controller: TransformStreamDefaultController<Uint8Array>,
+    controller: TransformStreamDefaultController<Uint8Array>
   ) => {
     if (finished) {
       return;
@@ -1438,28 +1439,26 @@ export function createEventStreamTransformer(
               parsedMessage = customParser(event.data);
             } catch (e) {
               console.warn(
-                `Error parsing event: ${JSON.stringify(event)}\n${e}`,
+                `Error parsing event: ${JSON.stringify(event)}\n${e}`
               );
               controller.enqueue(
                 new TextEncoder().encode(
-                  "data: " + `${JSON.stringify(`${e}`)}` + "\n\n",
-                ),
+                  "data: " + `${JSON.stringify(`${e}`)}` + "\n\n"
+                )
               );
               finish(controller);
               return;
             }
             if (parsedMessage.data !== null) {
               controller.enqueue(
-                new TextEncoder().encode(
-                  "data: " + parsedMessage.data + "\n\n",
-                ),
+                new TextEncoder().encode("data: " + parsedMessage.data + "\n\n")
               );
             }
             if (parsedMessage.finished) {
               finish(controller);
             }
           }
-        },
+        }
       );
     },
 
@@ -1473,14 +1472,14 @@ export function createEventStreamTransformer(
 function parseEnumHeader<T>(
   headerName: string,
   headerTypes: readonly T[],
-  value?: string,
+  value?: string
 ): (typeof headerTypes)[number] {
   const header = value && value.toLowerCase();
   if (header && !headerTypes.includes(header as T)) {
     throw new Error(
       `Invalid ${headerName} header '${header}'. Must be one of ${headerTypes.join(
-        ", ",
-      )}`,
+        ", "
+      )}`
     );
   }
   return (header || headerTypes[0]) as (typeof headerTypes)[number];
@@ -1519,16 +1518,16 @@ function spanTypeToName(spanType: SpanType): string {
 
 export function guessSpanType(
   url: string,
-  model: string | undefined,
+  model: string | undefined
 ): SpanType | undefined {
   const spanName =
     url === "/chat/completions"
       ? "chat"
       : url === "/completions"
-        ? "completion"
-        : url === "/embeddings"
-          ? "embedding"
-          : undefined;
+      ? "completion"
+      : url === "/embeddings"
+      ? "embedding"
+      : undefined;
   if (spanName) {
     return spanName;
   }
@@ -1546,7 +1545,7 @@ export function guessSpanType(
 function logSpanInputs(
   bodyData: any,
   spanLogger: SpanLogger,
-  maybeSpanType: SpanType | undefined,
+  maybeSpanType: SpanType | undefined
 ) {
   const spanType = maybeSpanType || "chat";
   switch (spanType) {
